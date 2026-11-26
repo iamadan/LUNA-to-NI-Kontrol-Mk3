@@ -1,7 +1,8 @@
 {
+    "package_name": "LUNA-to-NI-Kontrol-Mk3",
     "id": "io.github.iamadan.luna_ni_kontrol_mk3",
     "title": "LUNA -> NI Kontrol Mk3",
-    "version": "2.4.0",
+    "version": "2.4.1",
     "manufacturer": "Dan Morton",
     "description": [
         "DAW-mode control surface for the Native Instruments Kontrol Mk3 keyboards — S49, S61 and S88. ",

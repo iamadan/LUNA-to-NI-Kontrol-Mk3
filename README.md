@@ -22,7 +22,7 @@ items, and nothing to remember.
 |---|---|
 | Keyboard | Kontrol **S49 / S61 / S88 Mk3**, **firmware 2.0 or later** |
 | LUNA | **3.1.2 or later** |
-| Add On SDK | `@uaudio/luna-builder-sdk` 3.1.1, Apache-2.0 — vendored here as `luna.global.js` |
+| Add On SDK | `@uaudio/luna-builder-sdk` 3.1.2, Apache-2.0 — vendored here as `luna.global.js` |
 
 Firmware 2.0 is not optional. Before it, the Mk3 had no DAW MIDI port at all and its
 DAW mode was reachable only through NI's own background service. With 2.0 the keyboard

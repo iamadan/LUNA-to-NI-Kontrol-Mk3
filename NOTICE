@@ -10,7 +10,7 @@ Third-party components
 
 luna.global.js is the LUNA Add On SDK, vendored unmodified:
 
-    @uaudio/luna-builder-sdk 3.1.1
+    @uaudio/luna-builder-sdk 3.1.2
     Copyright 2026 Universal Audio, Inc.
     Licensed under the Apache License, Version 2.0.
 
