@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LUNA -> NI Kontrol Mk3</title>
+<style>
+  /* Palette measured from LUNA's own Appearance.json and UI bitmaps */
+  :root {
+    --bg: #232424;            /* main toolbar/window grey */
+    --bg-deep: #141414;       /* luna_play_page_bg */
+    --panel: #1e2022;         /* track_headers_footer */
+    --strip: #2a2c2e;
+    --strip-header: #35373a;
+    --slot: #0f0f0f;          /* fader_track */
+    --text: #e5f6ff;          /* light_grey_text */
+    --dim: #a1adb3;           /* grey_text */
+    --faint: #5d6569;         /* info_section_separator */
+    --border: #525759;        /* channel_strip_separator_line */
+    --border-dark: #101112;
+    --amber: #ffc54a;         /* pumpkin_spice */
+    --amber-glow: #ffe6b1;    /* yellow_text_mouseover / lit-gel halo */
+    --red-glow: #ff6a5e;
+    --meter-lo: #4d8a1a; --meter-hi: #ebbe0d; --clip: #ff0d0d;
+  }
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    background: linear-gradient(#2a2b2c, var(--bg) 90px);
+    color: var(--text);
+    font: 12px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin: 0; padding: 14px 16px;
+  }
+  h1 {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); margin: 0 0 12px;
+    text-shadow: 0 1px 0 rgba(0,0,0,.6);
+  }
+  .status-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .badge {
+    background: linear-gradient(#26282a, #1c1e20);
+    border: 1px solid var(--border-dark); border-top-color: #3a3d40;
+    border-radius: 3px; padding: 5px 10px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .badge b { color: var(--dim); font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 11px; }
+  .badge.ok b { color: var(--amber); }
+  .badge.bad b { color: var(--red-glow); }
+
+  .transport {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: linear-gradient(#2c2e30, #212324);
+    border: 1px solid var(--border-dark); border-top-color: #3d4043;
+    border-radius: 4px; padding: 8px 10px; margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5);
+  }
+  /* LUNA gel switch: metallic grey off, glowing warm-yellow LED on, black legend */
+  .transport button, .ms button, .tool {
+    font: 700 9px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    text-transform: uppercase; letter-spacing: .05em;
+    background: linear-gradient(#c4c9cd, #a8aeb2 45%, #969ba0);
+    color: rgba(0,0,0,.75);
+    border: 1px solid #17181a; border-radius: 4px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -2px 3px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.5);
+    cursor: pointer;
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  }
+  .transport button { padding: 8px 14px; min-width: 52px; }
+  .transport button:active, .ms button:active, .tool:active { filter: brightness(.88); }
+  .transport button:disabled, .tool:disabled { opacity: .4; cursor: default; }
+  .transport button.active {
+    background: radial-gradient(ellipse at 50% 40%, #fffdf2, var(--amber-glow) 45%, var(--amber) 80%, #b57d13);
+    border-color: #5a2b00; color: rgba(0,0,0,.8);
+    box-shadow: 0 0 10px rgba(255,197,74,.55), inset 0 1px 0 rgba(255,255,255,.7);
+    text-shadow: none;
+  }
+  .transport button.rec.active {
+    background: radial-gradient(ellipse at 50% 40%, #fff3f0, #ffb3a8 45%, #f4574a 80%, #730000);
+    border-color: #5a0000; color: rgba(0,0,0,.8);
+    box-shadow: 0 0 10px rgba(255,60,40,.55), inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  .loc {
+    margin-left: auto; padding: 5px 12px;
+    font: 700 13px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums; color: var(--dim);
+    background: var(--bg-deep); border: 1px solid var(--border-dark); border-radius: 3px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.05);
+    text-shadow: 0 0 4px rgba(229,246,255,.25);
+  }
+
+  .bank { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 1px; margin-bottom: 12px;
+    background: var(--border-dark); border: 1px solid var(--border-dark); border-radius: 4px; overflow: hidden; }
+  .strip {
+    background: linear-gradient(var(--strip-header) 0, var(--strip) 26px, var(--panel));
+    padding: 0 8px 8px; display: flex; flex-direction: column; gap: 6px; min-height: 170px;
+    border-top: 1px solid #45484b;
+    position: relative;
+  }
+  .strip.selected::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: rgba(255,255,255,.1);            /* track_selected_overlay */
+    box-shadow: inset 0 0 0 1px var(--amber);
+  }
+  .strip .nm {
+    font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--dim); padding: 7px 0 5px; margin: 0 -8px 2px; text-align: center;
+    border-bottom: 1px solid var(--border-dark);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 0 rgba(0,0,0,.6);
+  }
+  .strip .val { color: var(--faint); font-size: 10px; font-variant-numeric: tabular-nums; text-align: center; }
+  .fader-wrap { flex: 1; display: flex; gap: 6px; align-items: stretch; min-height: 64px; justify-content: center; }
+  .fader {
+    width: 14px; flex: none; background: var(--slot); border-radius: 2px; position: relative; overflow: hidden;
+    border: 1px solid var(--border-dark);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.05);
+  }
+  .fader .fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(#c4c9cd, #8a8f92);
+    border-top: 2px solid #e8ecee;
+    opacity: .9;
+  }
+  .meterbar {
+    width: 7px; background: #191c14; border-radius: 2px; position: relative; overflow: hidden;
+    border: 1px solid var(--border-dark);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.8);
+  }
+  .meterbar .fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, var(--meter-lo), var(--meter-lo) 60%, var(--meter-hi) 85%, var(--clip));
+  }
+  .ms { display: flex; gap: 3px; }
+  .ms button { flex: 1; padding: 4px 0; border-radius: 3px; }
+  .ms button.mute.on, .ms button.solo.on {
+    background: radial-gradient(ellipse at 50% 40%, #fffdf2, var(--amber-glow) 45%, var(--amber) 85%, #b57d13);
+    border-color: #5a2b00; color: rgba(0,0,0,.8);
+    box-shadow: 0 0 8px rgba(255,197,74,.5), inset 0 1px 0 rgba(255,255,255,.7);
+    text-shadow: none;
+  }
+  .ms button.arm.on {
+    background: radial-gradient(ellipse at 50% 40%, #fff3f0, #ffb3a8 45%, #f4574a 85%, #730000);
+    border-color: #5a0000; color: rgba(0,0,0,.8);
+    box-shadow: 0 0 8px rgba(255,60,40,.5), inset 0 1px 0 rgba(255,255,255,.7);
+    text-shadow: none;
+  }
+  .panline { height: 4px; background: var(--slot); border-radius: 2px; position: relative; margin: 2px 4px 4px;
+    border: 1px solid var(--border-dark); box-shadow: inset 0 1px 2px rgba(0,0,0,.7); }
+  .panline .dot {
+    position: absolute; top: -4px; width: 9px; height: 12px; border-radius: 2px;
+    background: linear-gradient(#d3d3d3, #797979); border: 1px solid #17181a;
+    transform: translateX(-50%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+
+  /* panels */
+  details.panel {
+    background: var(--panel); border: 1px solid var(--border-dark); border-radius: 4px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  details.panel > summary {
+    cursor: pointer; padding: 8px 12px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--dim);
+    background: linear-gradient(#2c2e30, #242628); list-style: none;
+    border-bottom: 1px solid var(--border-dark);
+  }
+  details.panel > summary::-webkit-details-marker { display: none; }
+  details.panel > summary::before { content: "▸ "; color: var(--faint); }
+  details.panel[open] > summary::before { content: "▾ "; }
+  .panel-body { padding: 10px 12px; }
+  .note { color: var(--dim); font-size: 11px; line-height: 1.6; }
+  .note strong { color: var(--amber); font-weight: 700; }
+  .note code, .hint code { color: var(--text); background: #000; padding: 1px 5px; border-radius: 2px;
+    font: 10px/1.5 ui-monospace, Menlo, monospace; }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  .note li { margin-bottom: 4px; }
+
+  table.map { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.map th {
+    text-align: left; color: var(--faint); font-size: 9px; text-transform: uppercase;
+    letter-spacing: .06em; font-weight: 700; padding: 4px 6px; border-bottom: 1px solid var(--border-dark);
+  }
+  table.map td { padding: 3px 6px; border-bottom: 1px solid #191b1d; color: var(--dim); }
+  table.map tr.learning td { background: rgba(255,197,74,.12); }
+  table.map tr.hit td { background: rgba(255,197,74,.22); transition: background .25s; }
+  .tool { padding: 4px 9px; }
+  .tool.on {
+    background: radial-gradient(ellipse at 50% 40%, #fffdf2, var(--amber-glow) 45%, var(--amber) 85%, #b57d13);
+    border-color: #5a2b00; box-shadow: 0 0 8px rgba(255,197,74,.5);
+  }
+  .sig { font: 10px/1.5 ui-monospace, Menlo, monospace; color: var(--text); }
+  .sig.none { color: var(--faint); }
+  select, input[type=number] {
+    background: var(--bg-deep); color: var(--text); border: 1px solid var(--border-dark);
+    border-radius: 3px; padding: 3px 5px; font: 10px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  .toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .log {
+    background: var(--bg-deep); border: 1px solid var(--border-dark); border-radius: 3px;
+    padding: 8px 10px; height: 150px; overflow-y: auto;
+    font: 10px/1.6 ui-monospace, Menlo, monospace; color: var(--faint); white-space: pre-wrap;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.6);
+  }
+  .log::-webkit-scrollbar { width: 8px; }
+  .log::-webkit-scrollbar-track { background: #232528; }
+  .log::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 4px; }
+  .hint { color: var(--faint); font-size: 10px; margin: 6px 0 12px; }
+
+  /* ---- Compact mode -----------------------------------------------------
+   * The window has to stay open for the integration to run, so its resting
+   * state is a strip barely taller than its own text: a lamp, what it is
+   * connected to, and the way back to the full page. Everything else is taken
+   * out of the layout rather than scrolled past. */
+  .titlebar { display: flex; align-items: baseline; gap: 10px; }
+  .titlebar h1 { flex: 1; }
+
+  #compact { display: none; }
+  body.compact { padding: 0; height: 100vh; overflow: hidden; background: var(--bg); }
+  body.compact > *:not(#compact) { display: none !important; }
+  body.compact #compact { display: flex; }
+  #compact {
+    align-items: center; gap: 10px; height: 100vh; padding: 0 12px;
+    background: linear-gradient(#2c2d2e, var(--bg));
+  }
+  #compact .dot {
+    width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: var(--faint); box-shadow: 0 0 0 1px rgba(0,0,0,.6);
+  }
+  #compact .dot.ok { background: var(--amber);
+    box-shadow: 0 0 7px var(--amber-glow), 0 0 0 1px rgba(0,0,0,.6); }
+  #compact .dot.bad { background: var(--red-glow);
+    box-shadow: 0 0 7px rgba(255,106,94,.55), 0 0 0 1px rgba(0,0,0,.6); }
+  #compact .dot.warn { background: #b98b2e; box-shadow: 0 0 0 1px rgba(0,0,0,.6); }
+  #compact .ctext { flex: 1; min-width: 0; }
+  #compact .ctext b, #compact .ctext span {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #compact .ctext b { font-size: 11px; font-weight: 700; color: var(--text); }
+  #compact .ctext span { font-size: 10px; color: var(--faint); }
+</style>
+</head>
+<body>
+<script>
+  /* Before the first paint, so reopening a compact window never flashes the full
+   * page. app.js owns this class afterwards and reads the same key. */
+  try {
+    if ((localStorage.getItem('kontrol.winmode') || 'compact') === 'compact') {
+      document.body.className = 'compact';
+    }
+  } catch (e) {}
+</script>
+
+<div id="compact">
+  <span class="dot" id="cDot"></span>
+  <div class="ctext">
+    <b id="cMain">Connecting…</b>
+    <span id="cSub">—</span>
+  </div>
+  <button class="tool" id="btnExpand">Expand</button>
+</div>
+
+<div class="titlebar">
+  <h1>Native Instruments Kontrol Mk3 → UA LUNA · NIHIA v4</h1>
+  <button class="tool" id="btnCompact">Compact</button>
+</div>
+
+<div class="status-row">
+  <div class="badge" id="lunaStatus">LUNA: <b>connecting…</b></div>
+  <div class="badge" id="portStatus">Port: <b>—</b></div>
+  <div class="badge" id="dawStatus">DAW mode: <b>waiting for port</b></div>
+  <div class="badge">Bank: <b id="bankLabel">—</b></div>
+</div>
+
+<details class="panel" id="setupPanel">
+  <summary>Setup — what has to be true for the DAW button to light</summary>
+  <div class="panel-body note">
+    <ul>
+      <li><strong>Keyboard firmware 2.0 or later.</strong> Only then does the Mk3 expose its
+        own DAW port — <code>KONTROL S88 MK3 DAW</code>, or the S61 / S49 spelling of it. Update in Native Access, then power-cycle the keyboard.</li>
+      <li><strong>LUNA 3.1.2 or later.</strong> Earlier builds cannot send SysEx out of a MIDI
+        port, and nearly everything the keyboard's screens show is SysEx.</li>
+      <li><strong>Nothing else may hold the keyboard's DAW mode.</strong> Komplete Kontrol
+        running as a plugin on a LUNA track is fine — that is what the PLUG-IN button is for —
+        but Komplete Kontrol standalone takes the keyboard for itself. Quit it, or press
+        <em>Release to Komplete Kontrol</em> here.</li>
+      <li>The <em>Port</em> badge should name the DAW port, and <em>DAW mode</em> should read
+        <em>connected (v4)</em>. If it says no answer, press Re-handshake.</li>
+    </ul>
+  </div>
+</details>
+
+<div class="transport">
+  <button id="btnPlay">Play</button>
+  <button id="btnStop">Stop</button>
+  <button id="btnRec" class="rec">Rec</button>
+  <button id="btnLoop">Loop</button>
+  <button id="btnBankL">◀ Bank</button>
+  <button id="btnBankR">Bank ▶</button>
+  <span class="loc" id="loc">—</span>
+</div>
+
+<div class="bank" id="bank"></div>
+
+<div class="note" style="margin:8px 0 4px">PLUG-IN pages: <b id="rack" style="white-space:pre-wrap">—</b></div>
+
+<details class="panel" open>
+  <summary>Connection</summary>
+  <div class="panel-body">
+    <div class="toolbar">
+      <span class="note">Keyboard DAW port:</span>
+      <select id="devSelect"><option value="">no MIDI devices</option></select>
+      <button class="tool" id="btnHandshake">Re-handshake</button>
+      <button class="tool" id="btnReload">Reload page</button>
+      <button class="tool" id="btnRelease">Release to Komplete Kontrol</button>
+      <span class="note">Knob sensitivity:</span>
+      <select id="sens">
+        <option value="0.5">×0.5</option>
+        <option value="1">×1 (default)</option>
+        <option value="2">×2</option>
+        <option value="4">×4</option>
+        <option value="8">×8</option>
+        <option value="16">×16</option>
+      </select>
+    </div>
+    <div class="note">
+      Knobs 1–8 set volume, shift + knob sets pan, the 4-D encoder selects tracks (left/right)
+      and pages banks (up/down), and MUTE/SOLO act on the track under the button you press.
+      MIDI goes through LUNA itself — there is no helper process to start.
+      <br><br>
+      <strong>One selection.</strong> Moving the selection on the keyboard selects the same
+      track in LUNA, and clicking a track in LUNA moves the keyboard to it. Aux buses and
+      MAIN have no row in the arrangement, so those move the keyboard only.
+      <br><br>
+      <strong>Record arm.</strong> NIHIA has no arm button of its own, so it is on the one
+      spare control: hold <strong>SHIFT</strong> and push the <strong>4-D encoder</strong>
+      in to arm the selected track. Pushing it without SHIFT is left alone, because that is
+      how push-and-turn jogs the playhead.
+      <br><br>
+      <strong>DAW and PLUG-IN are both live.</strong> They are two halves of one connection:
+      DAW shows the mixer, PLUG-IN shows the selected channel's plugin chain, and the
+      keyboard switches between them on its own. On a track carrying Komplete Kontrol,
+      Kontakt, Maschine or Reaktor the plugin pages are handed to the instrument's own NKS
+      screens, while this surface keeps the mixer and the transport.
+      <br><br>
+      <strong>Compact</strong> shrinks this window to a strip that says whether the keyboard
+      is connected, which is all it needs to show while it is doing its job. The surface only
+      runs while the window is open, so this is its resting state; <em>Expand</em> brings the
+      full page back at the size you last left it.
+      <br><br>
+      <strong>Closing this window no longer stops the surface.</strong> The page stays
+      loaded and keeps running, so the keyboard stays live with no window on screen. LUNA
+      reopens the window at launch if it was open when you quit, which is how the surface
+      comes up with LUNA — leave the compact strip open and it is there every time.
+      <br><br>
+      <strong>Release</strong> is the deliberate way out: it drops the connection entirely so
+      Komplete Kontrol can take the keyboard as if LUNA were not running. The DAW button goes
+      dark until you take it back. Since closing the window no longer does this for you, this
+      button (or pressing DAW on the keyboard) is now the way to hand it over.
+      <br><br>
+      <strong>Reload page</strong> re-enters this page from disk. It is only needed after
+      editing the Add On's files: closing and reopening the window no longer reloads it.
+    </div>
+  </div>
+</details>
+
+<div class="note" style="margin:8px 0 4px">Status: <b id="diag">starting</b></div>
+<div class="log" id="log"></div>
+
+<script src="./luna.global.js"></script>
+<script>
+/* LUNA hosts this page in a WKWebView, which caches aggressively and has no
+ * reload button. An edit to nihia.js or app.js would otherwise not reach the
+ * add-on until the cache happened to expire — the window opens and quietly runs
+ * the previous version. Load them with a fresh query string each time, in order,
+ * so reopening the window is always enough to pick up a change. */
+(function () {
+  var files = ['./nihia.js', './app.js'];
+  var v = Date.now();
+  (function next(i) {
+    if (i >= files.length) return;
+    var s = document.createElement('script');
+    s.src = files[i] + '?v=' + v;
+    s.onload = function () { next(i + 1); };
+    s.onerror = function () {
+      document.getElementById('log').textContent = 'Failed to load ' + files[i];
+    };
+    document.body.appendChild(s);
+  })(0);
+})();
+</script>
+</body>
+</html>

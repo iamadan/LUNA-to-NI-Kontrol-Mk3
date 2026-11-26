@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Superseded page kept only as a local backup
+index.html.orig-backup
+
+# Compiled output of the retired bridge; build it with bridge/build.sh
+bridge/s88-bridge

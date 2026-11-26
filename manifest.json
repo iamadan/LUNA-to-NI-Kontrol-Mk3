@@ -1,0 +1,28 @@
+{
+    "id": "io.github.iamadan.luna_ni_kontrol_mk3",
+    "title": "LUNA -> NI Kontrol Mk3",
+    "version": "2.4.0",
+    "manufacturer": "Dan Morton",
+    "description": [
+        "DAW-mode control surface for the Native Instruments Kontrol Mk3 keyboards — S49, S61 and S88. ",
+        "The keyboard's screens show LUNA's mixer on the DAW button and the selected channel's ",
+        "plugin chain on PLUG-IN, with NKS handover for Komplete Kontrol and Kontakt. Track ",
+        "selection and record arm are shared with LUNA. Needs keyboard firmware 2.0 or later."
+    ],
+    "categories": [
+        "MIDI",
+        "Utility"
+    ],
+    "min_luna_version": "3.1.2",
+    "engines": [
+        "luna"
+    ],
+    "html": "index.html",
+    "target": "window",
+    "width": 340,
+    "height": 72,
+    "min_width": 280,
+    "min_height": 60,
+    "run_hidden": true,
+    "unload_on_close": false
+}
